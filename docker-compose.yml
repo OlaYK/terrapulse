@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_USER: terrapulse
+      POSTGRES_PASSWORD: terrapulse_secret
+      POSTGRES_DB: terrapulse_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U terrapulse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://terrapulse:terrapulse_secret@db:5432/terrapulse_db
+      - STAC_API_URL=https://earth-search.aws.element84.com/v1
+      - TITILER_ENDPOINT=https://titiler.xyz
+      - REQUIRE_DATABASE=false
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:4173
+      - PHOTON_ENDPOINT=https://photon.komoot.io
+      - GEOCODER_TIMEOUT_SECONDS=5
+      - GEOCODER_USER_AGENT=TerraPulse MVP local
+      - NOMINATIM_USER_AGENT=TerraPulse MVP local
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_TITILER_ENDPOINT=https://titiler.xyz
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host
+
+volumes:
+  pgdata:
