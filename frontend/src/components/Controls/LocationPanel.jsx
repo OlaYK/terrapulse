@@ -59,7 +59,7 @@ export default function LocationPanel({ onLocationSelect }) {
         </div>
       )}
       {searched && !loading && !error && results.length === 0 && (
-        <div className="notice">No matching places found. Try a city, district, river, or country name.</div>
+        <div className="notice">No matching places found. Try adding the country, for example "Lekki, Nigeria" or "Accra, Ghana".</div>
       )}
 
       {results.length > 0 && (
