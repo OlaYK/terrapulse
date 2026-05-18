@@ -12,7 +12,7 @@ Earth change observatory for Nigeria and Africa. TerraPulse compares Sentinel-2 
 - Show change overlays and summary statistics in the browser.
 - Explain each analysis mode in plain English before showing the technical formula.
 - Warn when an analysis area is too large, too high-resolution, or not covered by both selected scenes.
-- Copy share links and export lightweight JSON analysis reports.
+- Copy share links and export print-ready analysis reports that can be saved as PDF.
 - Provide Nigeria-focused AOI presets plus Nominatim search.
 - Search arbitrary places with OpenStreetMap-based Photon geocoding, with Nominatim fallback and backend caching.
 

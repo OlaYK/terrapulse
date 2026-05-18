@@ -144,9 +144,9 @@ export default function ChangePanel({ sceneA, sceneB, bbox, initialAnalysis, onO
     }
   }
 
-  function handleDownloadReport() {
+  function handleExportReport() {
     if (!result) return
-    const report = buildReport({
+    const reportHtml = buildReportHtml({
       sceneA,
       sceneB,
       bbox,
@@ -156,8 +156,21 @@ export default function ChangePanel({ sceneA, sceneB, bbox, initialAnalysis, onO
       resolution,
       result,
     })
-    downloadJson(report, `terrapulse-${mode}-${sceneA?.datetime || 'before'}-${sceneB?.datetime || 'after'}.json`)
-    setDownloadStatus('Report downloaded as JSON.')
+    const fileName = `terrapulse-${mode}-${sceneA?.datetime || 'before'}-${sceneB?.datetime || 'after'}`
+    const reportWindow = window.open('', '_blank', 'noopener,noreferrer,width=920,height=1100')
+
+    if (!reportWindow) {
+      downloadHtml(reportHtml, `${fileName}.html`)
+      setDownloadStatus('Popup blocked. A readable HTML report was downloaded instead.')
+      return
+    }
+
+    reportWindow.document.open()
+    reportWindow.document.write(reportHtml)
+    reportWindow.document.close()
+    reportWindow.focus()
+    window.setTimeout(() => reportWindow.print(), 350)
+    setDownloadStatus('Report opened. Choose Save as PDF in the print dialog.')
   }
 
   return (
@@ -262,14 +275,14 @@ export default function ChangePanel({ sceneA, sceneB, bbox, initialAnalysis, onO
           modeConfig={selectedMode}
           onCopyShareLink={handleCopyShareLink}
           onCopySummary={handleCopySummary}
-          onDownloadReport={handleDownloadReport}
+          onExportReport={handleExportReport}
         />
       )}
     </section>
   )
 }
 
-function Stats({ result, modeConfig, onCopyShareLink, onCopySummary, onDownloadReport }) {
+function Stats({ result, modeConfig, onCopyShareLink, onCopySummary, onExportReport }) {
   const stats = result.stats
   return (
     <div className="panel-section">
@@ -297,9 +310,9 @@ function Stats({ result, modeConfig, onCopyShareLink, onCopySummary, onDownloadR
           <Copy size={15} />
           <span>Copy summary</span>
         </button>
-        <button className="secondary-button" onClick={onDownloadReport}>
+        <button className="secondary-button" onClick={onExportReport}>
           <Download size={15} />
-          <span>Report JSON</span>
+          <span>PDF report</span>
         </button>
       </div>
     </div>
@@ -346,29 +359,6 @@ function buildGuardrails({ sceneA, sceneB, bbox, areaInfo, resolution }) {
   return items
 }
 
-function buildReport({ sceneA, sceneB, bbox, areaInfo, modeConfig, threshold, resolution, result }) {
-  return {
-    generated_at: new Date().toISOString(),
-    app: 'TerraPulse',
-    area: {
-      bbox,
-      size: areaInfo.label,
-      approximate_area_km2: Math.round(areaInfo.areaKm2),
-    },
-    before_scene: compactScene(sceneA),
-    after_scene: compactScene(sceneB),
-    analysis: {
-      id: modeConfig.id,
-      name: modeConfig.name,
-      shows: modeConfig.plain_summary,
-      formula: modeConfig.formula,
-      threshold,
-      resolution_px: resolution,
-    },
-    result: result.stats,
-  }
-}
-
 function buildTextSummary({ sceneA, sceneB, areaInfo, modeConfig, threshold, resolution, result }) {
   const stats = result.stats
   return [
@@ -386,8 +376,121 @@ function buildTextSummary({ sceneA, sceneB, areaInfo, modeConfig, threshold, res
   ].join('\n')
 }
 
-function downloadJson(data, fileName) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+function buildReportHtml({ sceneA, sceneB, bbox, areaInfo, modeConfig, threshold, resolution, result }) {
+  const stats = result.stats
+  const generatedAt = new Date().toLocaleString()
+  const title = `TerraPulse ${modeConfig.name} Analysis Report`
+  const bboxText = Array.isArray(bbox) ? bbox.map((value) => value.toFixed(5)).join(', ') : 'Unavailable'
+  const overlayImage = result.overlay_url
+    ? `<figure><img src="${result.overlay_url}" alt="Analysis overlay" /><figcaption>Analysis overlay. Positive and negative colors are listed in the legend.</figcaption></figure>`
+    : ''
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    :root { color: #172033; font-family: Arial, Helvetica, sans-serif; }
+    body { margin: 0; background: #f4f7fb; }
+    main { max-width: 860px; margin: 0 auto; padding: 36px; background: #fff; min-height: 100vh; }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    h2 { margin: 28px 0 10px; font-size: 17px; text-transform: uppercase; letter-spacing: 0.06em; }
+    p { line-height: 1.55; }
+    .muted { color: #5f6c7b; }
+    .summary { border: 1px solid #d7dee8; padding: 16px; background: #f8fafc; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .stat { border: 1px solid #d7dee8; padding: 12px; }
+    .stat span { display: block; color: #5f6c7b; font-size: 12px; }
+    .stat strong { display: block; margin-top: 4px; font-size: 22px; }
+    table { width: 100%; border-collapse: collapse; }
+    td, th { border: 1px solid #d7dee8; padding: 9px; text-align: left; vertical-align: top; }
+    th { background: #eef3f8; }
+    code { overflow-wrap: anywhere; }
+    figure { margin: 16px 0 0; }
+    img { max-width: 100%; border: 1px solid #d7dee8; image-rendering: auto; }
+    figcaption { color: #5f6c7b; font-size: 12px; margin-top: 6px; }
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; }
+    .swatch { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; }
+    @media print {
+      body { background: #fff; }
+      main { padding: 0; max-width: none; }
+      button { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>${escapeHtml(title)}</h1>
+    <p class="muted">Generated ${escapeHtml(generatedAt)}</p>
+
+    <section class="summary">
+      <strong>${escapeHtml(modeConfig.plain_label)}</strong>
+      <p>${escapeHtml(modeConfig.plain_summary)}</p>
+      <p><strong>Technical formula:</strong> <code>${escapeHtml(modeConfig.formula || 'Not applicable')}</code></p>
+    </section>
+
+    <h2>Result</h2>
+    <div class="grid">
+      ${statHtml('Changed area', `${stats.change_percent}%`)}
+      ${statHtml(modeConfig.positive_label, `${stats.positive_change_percent}%`)}
+      ${statHtml(modeConfig.negative_label, `${stats.negative_change_percent}%`)}
+      ${statHtml('Mean change', stats.mean_change.toFixed(4))}
+    </div>
+    <p>${escapeHtml(stats.change_percent)}% of sampled pixels changed beyond the threshold. Positive color means ${escapeHtml(modeConfig.positive_label.toLowerCase())}; negative color means ${escapeHtml(modeConfig.negative_label.toLowerCase())}.</p>
+    <div class="legend">
+      <span><i class="swatch" style="background:${escapeHtml(result.color_legend.positive)}"></i>${escapeHtml(modeConfig.positive_label)}</span>
+      <span><i class="swatch" style="background:${escapeHtml(result.color_legend.negative)}"></i>${escapeHtml(modeConfig.negative_label)}</span>
+    </div>
+    ${overlayImage}
+
+    <h2>Analysis Settings</h2>
+    <table>
+      <tbody>
+        ${rowHtml('Area size', `${areaInfo.label} (${Math.round(areaInfo.areaKm2)} sq km approx.)`)}
+        ${rowHtml('Bounding box', bboxText)}
+        ${rowHtml('Threshold', threshold.toFixed(2))}
+        ${rowHtml('Resolution', `${resolution} px`)}
+      </tbody>
+    </table>
+
+    <h2>Scenes</h2>
+    <table>
+      <thead>
+        <tr><th>Role</th><th>Date</th><th>Cloud</th><th>Scene ID</th></tr>
+      </thead>
+      <tbody>
+        ${sceneRowHtml('Before', sceneA)}
+        ${sceneRowHtml('After', sceneB)}
+      </tbody>
+    </table>
+
+    <h2>Note</h2>
+    <p class="muted">Sentinel-2 is useful for broad land-cover and environmental monitoring, but it is not sub-meter imagery. Treat this report as screening evidence for further review.</p>
+  </main>
+</body>
+</html>`
+}
+
+function statHtml(label, value) {
+  return `<div class="stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`
+}
+
+function rowHtml(label, value) {
+  return `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`
+}
+
+function sceneRowHtml(role, scene) {
+  return `<tr>
+    <td>${escapeHtml(role)}</td>
+    <td>${escapeHtml(scene?.datetime || 'Unknown')}</td>
+    <td>${escapeHtml(scene?.cloud_cover != null ? `${scene.cloud_cover.toFixed(1)}%` : 'Unavailable')}</td>
+    <td><code>${escapeHtml(scene?.id || 'Unavailable')}</code></td>
+  </tr>`
+}
+
+function downloadHtml(html, fileName) {
+  const blob = new Blob([html], { type: 'text/html' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
@@ -400,4 +503,13 @@ function downloadJson(data, fileName) {
 
 function sanitizeFileName(value) {
   return value.replace(/[^a-z0-9_.-]+/gi, '-').toLowerCase()
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
 }
