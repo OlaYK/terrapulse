@@ -26,6 +26,10 @@ class Settings(BaseSettings):
         default="http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173",
         description="Comma-separated list of allowed frontend origins.",
     )
+    CORS_ORIGIN_REGEX: str | None = Field(
+        default=None,
+        description="Optional regex for allowed frontend origins.",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -37,6 +41,10 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def cors_origin_regex_value(self) -> str | None:
+        return self.CORS_ORIGIN_REGEX.strip() if self.CORS_ORIGIN_REGEX else None
 
 
 @lru_cache

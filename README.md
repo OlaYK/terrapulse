@@ -65,6 +65,37 @@ copy .env.example .env
 npm run dev
 ```
 
+## Render Free-Tier Deploy
+
+This repo includes a `render.yaml` Blueprint that creates two free Render services:
+
+- `terrapulse-api`: Docker web service for FastAPI.
+- `terrapulse-web`: static Vite site served from `frontend/dist`.
+
+Deploy from the Render Dashboard:
+
+1. Push this repository to GitHub, GitLab, or Bitbucket.
+2. In Render, choose **New > Blueprint**.
+3. Connect the repository and keep the Blueprint path as `render.yaml`.
+4. Apply the Blueprint and wait for both services to deploy.
+5. Open `https://terrapulse-web.onrender.com` and confirm `https://terrapulse-api.onrender.com/health` returns `ok`.
+
+If Render assigns different service URLs, update these environment variables in Render and redeploy:
+
+```text
+terrapulse-web:
+  VITE_API_URL=https://your-api-service.onrender.com
+
+terrapulse-api:
+  CORS_ORIGINS=https://your-frontend-service.onrender.com
+  GEOCODER_USER_AGENT=TerraPulse MVP https://your-frontend-service.onrender.com
+  NOMINATIM_USER_AGENT=TerraPulse MVP https://your-frontend-service.onrender.com
+```
+
+Also update the static rewrite route for `/api/*` if you want same-origin API proxying through the frontend service.
+
+Render free web services spin down after idle time, so the first backend request after a pause can be slow. The free tier is fine for MVP testing, but use paid always-on services before sharing broadly or calling this production.
+
 ## Production Compose
 
 The production compose builds the frontend as static assets behind Nginx and proxies `/api` to FastAPI.

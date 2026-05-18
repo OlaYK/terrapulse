@@ -1,0 +1,67 @@
+services:
+  - type: web
+    name: terrapulse-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: ENVIRONMENT
+        value: production
+      - key: REQUIRE_DATABASE
+        value: false
+      - key: STAC_API_URL
+        value: https://earth-search.aws.element84.com/v1
+      - key: SENTINEL2_COLLECTION
+        value: sentinel-2-l2a
+      - key: TITILER_ENDPOINT
+        value: https://titiler.xyz
+      - key: PHOTON_ENDPOINT
+        value: https://photon.komoot.io
+      - key: NOMINATIM_ENDPOINT
+        value: https://nominatim.openstreetmap.org
+      - key: GEOCODER_TIMEOUT_SECONDS
+        value: 5
+      - key: GEOCODER_USER_AGENT
+        value: TerraPulse MVP https://terrapulse-web.onrender.com
+      - key: NOMINATIM_USER_AGENT
+        value: TerraPulse MVP https://terrapulse-web.onrender.com
+      - key: CORS_ORIGINS
+        value: https://terrapulse-web.onrender.com
+      - key: CORS_ORIGIN_REGEX
+        value: '^https://terrapulse-web(-[a-z0-9]+)?\.onrender\.com$'
+
+  - type: web
+    name: terrapulse-web
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: ./frontend/dist
+    autoDeployTrigger: commit
+    envVars:
+      - key: VITE_API_URL
+        value: https://terrapulse-api.onrender.com
+      - key: VITE_TITILER_ENDPOINT
+        value: https://titiler.xyz
+      - key: VITE_STAC_API_URL
+        value: https://earth-search.aws.element84.com/v1
+      - key: VITE_SENTINEL2_COLLECTION
+        value: sentinel-2-l2a
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /*
+        name: X-Frame-Options
+        value: sameorigin
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://terrapulse-api.onrender.com/api/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
