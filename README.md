@@ -10,6 +10,9 @@ Earth change observatory for Nigeria and Africa. TerraPulse compares Sentinel-2 
 - Fit searched locations to their real map bounds and use the center AOI frame for scene search/analysis.
 - Run change detection for NDVI, MNDWI, NBR, built-up index, and visible RGB difference.
 - Show change overlays and summary statistics in the browser.
+- Explain each analysis mode in plain English before showing the technical formula.
+- Warn when an analysis area is too large, too high-resolution, or not covered by both selected scenes.
+- Copy share links and export lightweight JSON analysis reports.
 - Provide Nigeria-focused AOI presets plus Nominatim search.
 - Search arbitrary places with OpenStreetMap-based Photon geocoding, with Nominatim fallback and backend caching.
 
@@ -98,7 +101,7 @@ Render free web services spin down after idle time, so the first backend request
 
 ## Production Compose
 
-The production compose builds the frontend as static assets behind Nginx and proxies `/api` to FastAPI.
+The production compose builds the frontend as static assets behind Nginx, proxies `/api` to FastAPI, and proxies `/tiles` to a self-hosted TiTiler container.
 
 ```bash
 docker compose -f docker-compose.prod.yml up --build
@@ -106,21 +109,35 @@ docker compose -f docker-compose.prod.yml up --build
 
 - App: http://localhost:8080
 - Backend is exposed only inside the Docker network by default.
+- TiTiler is exposed through the app at `/tiles`, so browser tile requests stay on the same origin.
 
 Set these environment variables before production deployment:
 
 ```bash
 POSTGRES_PASSWORD=change-this
-TITILER_ENDPOINT=https://your-titiler-host
-VITE_TITILER_ENDPOINT=https://your-titiler-host
 CORS_ORIGINS=https://your-app-domain
 NOMINATIM_USER_AGENT="TerraPulse contact@your-domain"
 GEOCODER_USER_AGENT="TerraPulse contact@your-domain"
 ```
 
+By default, production compose sets `TITILER_ENDPOINT=http://titiler:8000` for the backend and `VITE_TITILER_ENDPOINT=/tiles` for the frontend.
+
 ## TiTiler Limitation
 
 The public `https://titiler.xyz` instance is a demo server. It is fine for personal MVP testing, but it is rate limited and not suitable for production or public demos. Before CSLS or wider sharing, self-host TiTiler and point both `TITILER_ENDPOINT` and `VITE_TITILER_ENDPOINT` at that deployment.
+
+The compose production stack already includes the official TiTiler image:
+
+```bash
+docker compose -f docker-compose.prod.yml up --build
+```
+
+For a standalone TiTiler test:
+
+```bash
+docker run --platform=linux/amd64 -p 8000:8000 --rm -it ghcr.io/developmentseed/titiler:latest \
+  uvicorn titiler.application.main:app --host 0.0.0.0 --port 8000 --workers 1
+```
 
 ## Geocoding Note
 

@@ -23,7 +23,7 @@ services:
       - REQUIRE_DATABASE=true
       - STAC_API_URL=${STAC_API_URL:-https://earth-search.aws.element84.com/v1}
       - SENTINEL2_COLLECTION=${SENTINEL2_COLLECTION:-sentinel-2-l2a}
-      - TITILER_ENDPOINT=${TITILER_ENDPOINT:-https://titiler.xyz}
+      - TITILER_ENDPOINT=${TITILER_ENDPOINT:-http://titiler:8000}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8080}
       - PHOTON_ENDPOINT=${PHOTON_ENDPOINT:-https://photon.komoot.io}
       - GEOCODER_TIMEOUT_SECONDS=${GEOCODER_TIMEOUT_SECONDS:-5}
@@ -32,6 +32,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      titiler:
+        condition: service_started
+    expose:
+      - "8000"
+
+  titiler:
+    image: ghcr.io/developmentseed/titiler:latest
+    command: uvicorn titiler.application.main:app --host 0.0.0.0 --port 8000 --workers ${TITILER_WORKERS:-1}
+    environment:
+      - GDAL_DISABLE_READDIR_ON_OPEN=EMPTY_DIR
+      - GDAL_HTTP_MAX_RETRY=3
+      - CPL_VSIL_CURL_ALLOWED_EXTENSIONS=.tif,.tiff
     expose:
       - "8000"
 
@@ -41,13 +53,14 @@ services:
       dockerfile: Dockerfile.prod
       args:
         VITE_API_URL: ""
-        VITE_TITILER_ENDPOINT: ${VITE_TITILER_ENDPOINT:-https://titiler.xyz}
+        VITE_TITILER_ENDPOINT: ${VITE_TITILER_ENDPOINT:-/tiles}
         VITE_STAC_API_URL: ${STAC_API_URL:-https://earth-search.aws.element84.com/v1}
         VITE_SENTINEL2_COLLECTION: ${SENTINEL2_COLLECTION:-sentinel-2-l2a}
     ports:
       - "8080:80"
     depends_on:
       - backend
+      - titiler
 
 volumes:
   pgdata:

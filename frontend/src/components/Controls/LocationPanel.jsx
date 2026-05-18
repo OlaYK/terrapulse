@@ -8,6 +8,7 @@ export default function LocationPanel({ onLocationSelect }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
+  const [loadingPresets, setLoadingPresets] = useState(true)
   const [error, setError] = useState('')
   const [searched, setSearched] = useState(false)
 
@@ -15,6 +16,7 @@ export default function LocationPanel({ onLocationSelect }) {
     getLocations()
       .then(setLocations)
       .catch((err) => setError(err.message))
+      .finally(() => setLoadingPresets(false))
   }, [])
 
   async function handleSearch(event) {
@@ -50,6 +52,12 @@ export default function LocationPanel({ onLocationSelect }) {
       </form>
 
       {error && <div className="notice notice-error">{error}</div>}
+      {loading && (
+        <div className="notice notice-info" aria-live="polite">
+          <Loader2 className="spin inline-icon" size={14} />
+          Searching OpenStreetMap place data. Broader names usually work best.
+        </div>
+      )}
       {searched && !loading && !error && results.length === 0 && (
         <div className="notice">No matching places found. Try a city, district, river, or country name.</div>
       )}
@@ -78,6 +86,7 @@ export default function LocationPanel({ onLocationSelect }) {
       <div className="panel-section">
         <h3>Presets</h3>
         <div className="list-stack">
+          {loadingPresets && <div className="empty-list">Loading Nigeria-focused presets...</div>}
           {locations.map((location) => (
             <button
               key={location.id}

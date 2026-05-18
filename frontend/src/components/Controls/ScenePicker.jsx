@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import { CalendarDays, Cloud, Loader2, Search } from 'lucide-react'
 
 import { DEFAULT_NIGERIA_BBOX, searchScenes } from '../../services/api'
+import { describeBbox } from '../../utils/geo'
 
 export default function ScenePicker({ bbox, sceneA, sceneB, onSceneASelect, onSceneBSelect }) {
   const defaults = useMemo(() => makeDateDefaults(), [])
@@ -15,6 +16,7 @@ export default function ScenePicker({ bbox, sceneA, sceneB, onSceneASelect, onSc
   const [afterScenes, setAfterScenes] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [searched, setSearched] = useState(false)
 
   const activeBbox = bbox || DEFAULT_NIGERIA_BBOX
   const areaInfo = useMemo(() => describeBbox(activeBbox), [activeBbox])
@@ -22,6 +24,7 @@ export default function ScenePicker({ bbox, sceneA, sceneB, onSceneASelect, onSc
   async function handleSearch() {
     setLoading(true)
     setError('')
+    setSearched(true)
     try {
       const [before, after] = await Promise.all([
         searchScenes({
@@ -58,8 +61,15 @@ export default function ScenePicker({ bbox, sceneA, sceneB, onSceneASelect, onSc
       </header>
 
       <div className={clsx('notice', areaInfo.large && 'notice-warning')}>
-        Search area: {areaInfo.label}
+        Search area: {areaInfo.label}. Sentinel-2 scenes are best compared after you zoom to the specific area you care about.
       </div>
+
+      {loading && (
+        <div className="notice notice-info" aria-live="polite">
+          <Loader2 className="spin inline-icon" size={14} />
+          Fetching before and after Sentinel-2 scenes from Earth Search. This can take a moment.
+        </div>
+      )}
 
       <div className="date-grid">
         <DateRange title="Before" start={beforeStart} end={beforeEnd} onStart={setBeforeStart} onEnd={setBeforeEnd} />
@@ -84,7 +94,7 @@ export default function ScenePicker({ bbox, sceneA, sceneB, onSceneASelect, onSc
 
       <button className="primary-button" onClick={handleSearch} disabled={loading}>
         {loading ? <Loader2 className="spin" size={16} /> : <Search size={16} />}
-        <span>Find scenes</span>
+        <span>{loading ? 'Fetching scenes' : 'Find scenes'}</span>
       </button>
 
       {error && <div className="notice notice-error">{error}</div>}
@@ -94,12 +104,16 @@ export default function ScenePicker({ bbox, sceneA, sceneB, onSceneASelect, onSc
         scenes={beforeScenes}
         selected={sceneA}
         onSelect={onSceneASelect}
+        loading={loading}
+        searched={searched}
       />
       <SceneColumn
         title="After"
         scenes={afterScenes}
         selected={sceneB}
         onSelect={onSceneBSelect}
+        loading={loading}
+        searched={searched}
       />
     </section>
   )
@@ -124,12 +138,17 @@ function DateRange({ title, start, end, onStart, onEnd }) {
   )
 }
 
-function SceneColumn({ title, scenes, selected, onSelect }) {
+function SceneColumn({ title, scenes, selected, onSelect, loading, searched }) {
   return (
     <div className="panel-section">
       <h3>{title}</h3>
       <div className="list-stack">
-        {scenes.length === 0 && <div className="empty-list">No scenes loaded</div>}
+        {loading && <div className="empty-list">Searching {title.toLowerCase()} date window...</div>}
+        {!loading && scenes.length === 0 && (
+          <div className="empty-list">
+            {searched ? 'No scenes found for this date range and cloud limit.' : 'No scenes loaded yet.'}
+          </div>
+        )}
         {scenes.map((scene) => (
           <button
             key={scene.id}
@@ -170,17 +189,4 @@ function addDays(date, days) {
 
 function toDateInput(date) {
   return date.toISOString().slice(0, 10)
-}
-
-function describeBbox(bbox) {
-  if (!bbox || bbox.length !== 4) return { label: 'current map view', large: false }
-  const [west, south, east, north] = bbox
-  const midLat = (south + north) / 2
-  const widthKm = Math.abs(east - west) * 111.32 * Math.cos((midLat * Math.PI) / 180)
-  const heightKm = Math.abs(north - south) * 111.32
-  const large = widthKm > 180 || heightKm > 180
-  return {
-    label: `${Math.max(1, Math.round(widthKm))} km x ${Math.max(1, Math.round(heightKm))} km`,
-    large,
-  }
 }

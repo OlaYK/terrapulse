@@ -6,6 +6,8 @@ import ChangePanel from './components/ChangeDetection/ChangePanel'
 import LocationPanel from './components/Controls/LocationPanel'
 import ScenePicker from './components/Controls/ScenePicker'
 import MapView from './components/Map/MapView'
+import { isValidBbox } from './utils/geo'
+import { readSharedState } from './utils/share'
 
 const SIDEBAR_TABS = [
   { id: 'location', icon: Globe2, label: 'Location' },
@@ -14,15 +16,16 @@ const SIDEBAR_TABS = [
 ]
 
 export default function App() {
-  const [mapBbox, setMapBbox] = useState(null)
-  const [mapCenter, setMapCenter] = useState([8.675, 9.082])
-  const [mapZoom, setMapZoom] = useState(6)
-  const [viewTarget, setViewTarget] = useState(null)
-  const [sceneA, setSceneA] = useState(null)
-  const [sceneB, setSceneB] = useState(null)
+  const [initialState] = useState(() => parseInitialState())
+  const [mapBbox, setMapBbox] = useState(initialState.bbox)
+  const [mapCenter, setMapCenter] = useState(initialState.center)
+  const [mapZoom, setMapZoom] = useState(initialState.zoom)
+  const [viewTarget, setViewTarget] = useState(initialState.viewTarget)
+  const [sceneA, setSceneA] = useState(initialState.sceneA)
+  const [sceneB, setSceneB] = useState(initialState.sceneB)
   const [changeOverlay, setChangeOverlay] = useState(null)
   const [overlayBbox, setOverlayBbox] = useState(null)
-  const [activeTab, setActiveTab] = useState('location')
+  const [activeTab, setActiveTab] = useState(initialState.activeTab)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const handleBoundsChange = useCallback(({ bbox, center, zoom }) => {
@@ -149,6 +152,7 @@ export default function App() {
                 sceneA={sceneA}
                 sceneB={sceneB}
                 bbox={mapBbox}
+                initialAnalysis={initialState.analysis}
                 onOverlayReady={handleOverlayReady}
                 onClear={handleClearOverlay}
               />
@@ -162,4 +166,52 @@ export default function App() {
 
 function StatusPill({ children, tone }) {
   return <span className={clsx('status-pill', `status-${tone}`)}>{children}</span>
+}
+
+function parseInitialState() {
+  const fallback = {
+    bbox: null,
+    center: [8.675, 9.082],
+    zoom: 6,
+    viewTarget: null,
+    sceneA: null,
+    sceneB: null,
+    analysis: null,
+    activeTab: 'location',
+  }
+
+  const shared = readSharedState()
+  if (!shared) return fallback
+
+  const bbox = isValidBbox(shared.bbox) ? shared.bbox : null
+  const center = bbox
+    ? [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]
+    : fallback.center
+
+  return {
+    bbox,
+    center,
+    zoom: Number.isFinite(shared.zoom) ? shared.zoom : fallback.zoom,
+    viewTarget: bbox
+      ? { bbox, center, zoom: Number.isFinite(shared.zoom) ? shared.zoom : 12, key: 'shared-state' }
+      : null,
+    sceneA: sanitizeScene(shared.sceneA),
+    sceneB: sanitizeScene(shared.sceneB),
+    analysis: shared.analysis || null,
+    activeTab: shared.sceneA && shared.sceneB ? 'change' : fallback.activeTab,
+  }
+}
+
+function sanitizeScene(scene) {
+  if (!scene?.id) return null
+  return {
+    id: scene.id,
+    datetime: scene.datetime || null,
+    cloud_cover: Number.isFinite(scene.cloud_cover) ? scene.cloud_cover : null,
+    bbox: isValidBbox(scene.bbox) ? scene.bbox : [],
+    thumbnail_url: scene.thumbnail_url || null,
+    stac_url: scene.stac_url || '',
+    platform: scene.platform || null,
+    tile_url_template: scene.tile_url_template || '',
+  }
 }

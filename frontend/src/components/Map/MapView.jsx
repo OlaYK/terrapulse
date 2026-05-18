@@ -224,14 +224,14 @@ export default function MapView({
       <section className="map-pane" aria-label="Before satellite image">
         <div ref={beforeContainerRef} className="map-canvas" />
         {sceneA && <SceneLabel label="BEFORE" scene={sceneA} />}
-        {sceneA && <TileStatus status={tileStatus.before} />}
+        {sceneA && <TileStatus status={tileStatus.before} label="before" />}
         {!sceneA && <PanePlaceholder label="Before" />}
       </section>
 
       <section className="map-pane" aria-label="After satellite image">
         <div ref={afterContainerRef} className="map-canvas" />
         {sceneB && <SceneLabel label="AFTER" scene={sceneB} />}
-        {sceneB && <TileStatus status={tileStatus.after} />}
+        {sceneB && <TileStatus status={tileStatus.after} label="after" />}
         {!sceneB && <PanePlaceholder label="After" />}
       </section>
 
@@ -277,12 +277,15 @@ function PanePlaceholder({ label }) {
   )
 }
 
-function TileStatus({ status }) {
+function TileStatus({ status, label }) {
   if (status === 'ready' || status === 'idle') return null
+  const copy = status === 'slow'
+    ? `Still loading ${label} satellite tiles from TiTiler. Zooming in may load fewer tiles.`
+    : `Loading ${label} satellite imagery tiles.`
   return (
-    <div className="tile-status">
+    <div className="tile-status" aria-live="polite">
       <span className="tile-status-dot" />
-      <span>{status === 'slow' ? 'Imagery still loading from TiTiler' : 'Loading imagery'}</span>
+      <span>{copy}</span>
     </div>
   )
 }

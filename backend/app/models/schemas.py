@@ -73,6 +73,10 @@ class ChangeDetectionResponse(BaseModel):
 class ChangeMode(BaseModel):
     id: str
     name: str
+    plain_label: str
+    plain_summary: str
+    positive_label: str
+    negative_label: str
     description: str
     formula: str
     bands: dict[str, str]

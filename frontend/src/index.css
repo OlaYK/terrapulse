@@ -309,6 +309,7 @@ button:disabled {
 .tile-status {
   right: 16px;
   bottom: 16px;
+  max-width: min(340px, calc(100% - 32px));
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -506,6 +507,21 @@ button:disabled {
   line-height: 1.35;
 }
 
+.mode-button em {
+  color: #e5edf4;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.mode-button code {
+  color: #7890aa;
+  font-size: 10px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .date-grid {
   display: grid;
   gap: 10px;
@@ -666,6 +682,23 @@ button:disabled {
   display: inline-block;
 }
 
+.section-help {
+  margin: 0;
+  color: #95a3b7;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.export-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.export-grid .secondary-button {
+  min-height: 36px;
+}
+
 .notice {
   border: 1px solid #334155;
   background: #0d1520;
@@ -681,10 +714,22 @@ button:disabled {
   color: #fecaca;
 }
 
+.notice-info {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  color: #d7f2ff;
+}
+
 .notice-warning {
   border-color: #f6b34d;
   background: rgba(246, 179, 77, 0.12);
   color: #f9ddb4;
+}
+
+.inline-icon {
+  display: inline-block;
+  margin-right: 7px;
+  vertical-align: -2px;
 }
 
 .empty-list {
